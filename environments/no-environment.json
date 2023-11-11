@@ -1,0 +1,7 @@
+{
+    "values": {
+        "twilio_account_id": "",
+        "twilio_auth_token": "",
+        "twilio_from_number": ""
+    }
+}
