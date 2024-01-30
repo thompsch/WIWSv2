@@ -46,5 +46,26 @@
         "private": false,
         "run_as_system": true,
         "disable_arg_logs": true
+    },
+    {
+        "name": "SendSmsFromTrigger",
+        "private": true
+    },
+    {
+        "name": "ConfirmNewTester",
+        "private": false,
+        "run_as_system": true,
+        "disable_arg_logs": true
+    },
+    {
+        "name": "RunBulkTestFromTrigger",
+        "private": false,
+        "run_as_system": true
+    },
+    {
+        "name": "ConfirmBulkTest",
+        "private": false,
+        "run_as_system": true,
+        "disable_arg_logs": true
     }
 ]

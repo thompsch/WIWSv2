@@ -25,66 +25,76 @@ exports = async function(query, response) {
   
   if (isAdmin) //message from an admin
   { 
-    if (message.toLowerCase().startsWith('[wiws]'))
+    if (message.toLowerCase().startsWith('[wiws]') || message.toLowerCase().startsWith('[test]') || message.toLowerCase().startsWith('[bulk]'))
     {
-      context.functions.execute("SendBulkTwilioMessage", "WIWS", message.substring(6));
-    } 
-    else if (message.toLowerCase().startsWith('[test]'))
-    {
-      context.functions.execute("SendBulkTwilioMessage", "test", message.substring(6));
+      const alertCollection = context.services.get("mongodb-atlas").db("WIWS").collection("AlertMessages");
+      //console.log(JSON.stringify({ 'messsage': message, 'recipients':  message.slice(0,6).toLowerCase(), 'dateSent': new Date() }));
+      alertCollection.insertOne({ 'message': message, 'recipients':  message.slice(0,6).toLowerCase(), 'dateSent': new Date() })
     }
     else if (message.toLowerCase().startsWith('add admin'))
     {
       let parts = message.trim().split(" ");
       if (parts.length < 3) console.error("error parsing number to add as admin. Message was:", message);
       console.log('Adding as admin:', parts[2])
-      await addAdmin(sender, parts[2]);
+      return await addAdmin(sender, parts[2]);
     }
     else if (message.toLowerCase().startsWith('remove admin'))
     {
       let parts = message.trim().split(" ");
       if (parts.length < 3) console.error("error parsing number to remove as admin. Message was:", message);
       console.log('Removing as admin:', parts[2])
-      await removeAdmin(sender, parts[2]);
+      return await removeAdmin(sender, parts[2]);
     }
     else if (message.startsWith('admin'))
     {
-      context.functions.execute("SendTwilioMessage", sender, "Admin: precede your message with '[wiws]' to go to everyone, '[test]' for just beta testers, or use 'add admin +12345678901' or 'remove admin +12345678901'.");
+      return await context.functions.execute("SendTwilioMessage", sender, "Admin: precede your message with '[wiws]' to go to everyone, '[test]' for limited beta testers, '[bulk]' for all beta testers, 'add admin +12345678901' or 'remove admin +12345678901'.");
+    } else if (message.toLowerCase().startsWith("bt")) {// admin bulk test response
+      console.log('here', message);
+      return handleBulkTestReponse(sender, message);
     }
     else {
-      context.functions.execute("SendTwilioMessage", sender, "Hi Admin. I don't know what you want to do -- try texting 'admin' for options.");
+      return await context.functions.execute("SendTwilioMessage", sender, "Hi Admin. I don't know what you want to do -- try texting 'admin' for options.");
     }
   }
+  
   else // message from a recipient or new
   {
     if (message.toLowerCase() == "add" || message.toLowerCase() == "sub" || message.toLowerCase() == "subscribe")
     {
-      await addNewUser(sender);
-    } 
-    else if (message.toLowerCase() == "remove" || message.toLowerCase() == "unsub" || message.toLowerCase() == "unsubscribe")
+      return await addNewUser(sender);
+    } else if (message.toLowerCase() == "remove" || message.toLowerCase() == "unsub" || message.toLowerCase() == "unsubscribe")
     {
-      await removeUser(sender);
-    }
-    else if (message.toLowerCase().startsWith("w")) 
+      return await removeUser(sender);
+    } else if (message.toLowerCase().startsWith("w")) //new user confirmation
     {
-      var result = await context.functions.execute("ConfirmNumber",sender, message)
+      await context.functions.execute("ConfirmNumber",sender, message)
       .then(async result =>{
         console.log('result', JSON.stringify(result));
-        return context.functions.execute("SendTwilioMessage", sender, result.message);
+        return await context.functions.execute("SendTwilioMessage", sender, result.message);
       });
-    } 
-    else if (message.toLowerCase().startsWith("a")) 
+    } else if (message.toLowerCase().startsWith("a")) //new admin confirmation
     {
       await context.functions.execute("ConfirmNewAdmin", sender, message)
       .then(async r=>{
         console.log('result', JSON.stringify(r));
         return context.functions.execute("SendTwilioMessage", sender, r.message);
       });
+    } else if (message.toLowerCase().startsWith("bt")) // bulk test response
+    {
+      return handleBulkTestReponse(sender, message);
     }
     else {
       console.log('message ignored', message, sender)
     }
   }
+}
+
+async function handleBulkTestReponse(sender, message){
+  await context.functions.execute("ConfirmBulkTest", sender, message)
+      .then(async r=>{
+        console.log('result', JSON.stringify(r));
+        return context.functions.execute("SendTwilioMessage", sender, r.message);
+      });
 }
 
 async function addNewUser(sender){
@@ -112,8 +122,7 @@ async function addNewUser(sender){
 async function removeUser(sender){
   const recipientCollection = context.services.get("mongodb-atlas").db("WIWS").collection("Recipients");
   var result = await recipientCollection.deleteOne({ '_id': sender });
-  console.log(JSON.stringify(result));
-  context.functions.execute("SendTwilioMessage", sender, "Your number has been removed from the system. If you want to start receiving messages again, send 'sub' or 'add'.");
+  return context.functions.execute("SendTwilioMessage", sender, "Your number has been removed from the system. If you want to start receiving messages again, send 'sub' or 'add'.");
 }
 
 async function addAdmin(sender, numberToAdd){
@@ -122,14 +131,14 @@ async function addAdmin(sender, numberToAdd){
     .then(async (result) => {
       if (result == null) {
         console.error('Admin is trying to add a phone number that is not in the recipients list yet.', numberToAdd);
-        await context.functions.execute("SendTwilioMessage", sender, "The number you are trying to add as an admin is not in the system. Please confirm that they have already signed up and you have entered the correct number.")
+        return await context.functions.execute("SendTwilioMessage", sender, "The number you are trying to add as an admin is not in the system. Please confirm that they have already signed up and you have entered the correct number.")
       }
       else {
         var secret = generateDeviceCode();
         await recipientCollection.updateOne({'_id':numberToAdd}, { $set: { 'pending_admin_secret': secret}})
-          .then(()=>{
-            context.functions.execute("SendTwilioMessage", sender, "A message has been sent to " + numberToAdd + " to confirm. Reply with 'remove admin " + numberToAdd + "' if this was a mistake.");
-            context.functions.execute("SendTwilioMessage", numberToAdd, "You have been added as an admin. Please reply with the following code to confirm: " + secret.toString());
+          .then(async ()=>{
+            await context.functions.execute("SendTwilioMessage", sender, "A message has been sent to " + numberToAdd + " to confirm. Reply with 'remove admin " + numberToAdd + "' if this was a mistake.");
+            return await context.functions.execute("SendTwilioMessage", numberToAdd, "You have been added as an admin. Please reply with the following code to confirm: " + secret.toString());
           });
       }
     });
@@ -140,11 +149,11 @@ async function removeAdmin(sender, numberToRemove){
   adminCollection.deleteOne({ '_id' : numberToRemove})
     .then(async (result) => {
       console.log('Admin removed:', result);
-      context.functions.execute("SendTwilioMessage", sender, "Success: " + numberToRemove + " is no longer an admin.");
+      return  await context.functions.execute("SendTwilioMessage", sender, "Success: " + numberToRemove + " is no longer an admin.");
   });
   
   const recipientCollection = context.services.get("mongodb-atlas").db("WIWS").collection("Recipients");
-  await recipientCollection.updateOne({'_id':numberToRemove}, { $unset: { 'pending_admin_secret': null}});
+  return await recipientCollection.updateOne({'_id':numberToRemove}, { $unset: { 'pending_admin_secret': null}});
 }
 
 function generateDeviceCode() 
