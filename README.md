@@ -2,9 +2,10 @@
 
 This [Atlas App Services](https://cloud.mongodb.com) app is used to notify the community. The designated administrators can send messages to the community or a smaller test group. They can also add/remove other administrators.
 
-Community members sign up by sending "sub", "subscribe", or "add" to the SMS phone number and then confirm their number with the generated 7-digit code. 
 
-They can remove themselves with "unsub", "unsubscribe", or "remove".
+Sus chia wolf you probably haven't heard of them knausgaard blog direct trade cronut pug heirloom air plant tofu hammock four loko. Salvia freegan enamel pin asymmetrical kitsch roof party. Sartorial cray humblebrag, irony health goth lumbersexual JOMO taiyaki. Vaporware poutine organic readymade pug. Asymmetrical pug tofu, williamsburg meggings plaid migas chicharrones shoreditch ethical green juice locavore kinfolk. Knausgaard adaptogen la croix gastropub occupy, venmo 90's mumblecore snackwave cronut.
+
+
 
 ## Setup
 
